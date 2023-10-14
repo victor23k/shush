@@ -25,4 +25,8 @@ impl IO {
             stderr: io::stderr(),
         }
     }
+
+    pub fn flush_stdout(&mut self) -> io::Result<()> {
+        self.stdout.flush()
+    }
 }
