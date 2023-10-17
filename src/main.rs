@@ -1,5 +1,7 @@
+use parser::ShushCmd;
 use read_input::IO;
 
+mod parser;
 mod read_input;
 
 fn main() {
@@ -15,6 +17,8 @@ fn main() {
             break;
         }
 
-        io.write_to_stdout(line.as_bytes()).unwrap();
+        let cmd = ShushCmd::parse_command(line);
+        let finished_cmd = cmd.execute_command().unwrap();
+        finished_cmd.append_to_histfile().unwrap();
     }
 }
