@@ -41,15 +41,15 @@ pub struct ShushCmd {
 }
 
 impl ShushCmd {
-    pub fn parse_command(line: String) -> Self {
+    pub fn parse_command(line: String) -> Option<Self> {
         let words: Vec<String> = line
             .split_whitespace()
             .map(|word| word.to_string())
             .collect();
-        Self {
-            program: words.first().unwrap().to_string(),
+        Some(Self {
+            program: words.first()?.to_string(),
             arguments: words[1..].to_vec(),
-        }
+        })
     }
 
     pub fn execute_command(&self) -> io::Result<FinishedShushCmd> {
