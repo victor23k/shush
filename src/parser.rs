@@ -4,10 +4,12 @@ use std::io;
 use std::io::Write;
 use std::process::{Command, ExitStatus};
 use std::time::{SystemTime, UNIX_EPOCH};
+use anyhow::{Result, anyhow};
+
 
 pub struct FinishedShushCmd<'a> {
     shush_cmd: &'a ShushCmd,
-    status: ExitStatus,
+    exit_code: bool,
     timestamp: u128,
 }
 
@@ -29,15 +31,21 @@ impl fmt::Display for FinishedShushCmd<'_> {
             "{};{};{}",
             &self.timestamp.to_string(),
             &self.shush_cmd.to_string(),
-            &self.status.success().to_string(),
+            &self.exit_code.to_string(),
         )
     }
+}
+
+#[derive(Debug)]
+enum BuiltInCommands {
+    CD,
 }
 
 #[derive(Debug)]
 pub struct ShushCmd {
     program: String,
     arguments: Vec<String>,
+    built_in: Option<BuiltInCommands>,
 }
 
 impl ShushCmd {
@@ -46,20 +54,53 @@ impl ShushCmd {
             .split_whitespace()
             .map(|word| word.to_string())
             .collect();
+        let program = words.first()?.to_string();
+        let built_in : Option<BuiltInCommands> = match program.as_str() {
+            "cd" => Some(BuiltInCommands::CD),
+            _ => None,
+        };
         Some(Self {
-            program: words.first()?.to_string(),
+            program,
             arguments: words[1..].to_vec(),
+            built_in,
         })
     }
 
-    pub fn execute_command(&self) -> io::Result<FinishedShushCmd> {
+    pub fn execute_command(&self) -> anyhow::Result<FinishedShushCmd> {
+        match self.built_in {
+            Some(BuiltInCommands::CD) => self.change_dir(),
+            None => self.execute_program(),
+        }
+    }
+
+    fn execute_program(&self) -> anyhow::Result<FinishedShushCmd> {
         let mut cmd_result = Command::new(&self.program).args(&self.arguments).spawn()?;
         let exit_status = cmd_result.wait()?;
         Ok(FinishedShushCmd {
             shush_cmd: self,
-            status: exit_status,
+            exit_code: exit_status.success(),
             timestamp: get_epoch_ms(),
         })
+    }
+
+    fn change_dir(&self) -> anyhow::Result<FinishedShushCmd> {
+        if self.arguments.len() != 1 {
+            return Err(anyhow!("cd program only accepts one argument"));
+        };
+        match self.arguments.first() {
+            Some(arg) => {
+                let path = std::path::Path::new(arg);
+                std::env::set_var("OLDPWD", std::env::current_dir()?);
+                std::env::set_current_dir(path)?;
+                std::env::set_var("PWD", path);
+                Ok(FinishedShushCmd {
+                    shush_cmd: self,
+                    exit_code: true,
+                    timestamp: get_epoch_ms(),
+                })
+            }
+            None => return Err(anyhow!("no argument found")),
+        }
     }
 }
 
