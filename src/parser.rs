@@ -59,9 +59,16 @@ impl ShushCmd {
             "cd" => Some(BuiltInCommands::CD),
             _ => None,
         };
+        let arguments = words[1..].to_vec().iter().map(|arg| -> String {
+            if arg.starts_with("$") {
+                std::env::var(arg.split("$").last().unwrap_or("")).unwrap_or(arg.to_string())
+            } else {
+                arg.to_string()
+            }
+        }).collect();
         Some(Self {
             program,
-            arguments: words[1..].to_vec(),
+            arguments,
             built_in,
         })
     }
