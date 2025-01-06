@@ -1,11 +1,8 @@
-// the first iteration of the shell will be reading what is passed to the program and printing it
 use crate::gap_buffer::GapBuffer;
-use libc::{ioctl, winsize};
-use std::io::{Error, Read};
-use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
+use std::io::Error;
+use std::os::fd::{IntoRawFd, RawFd};
 use std::{
     error,
-    fs::File,
     io::{self, Write},
 };
 use termios::*;
@@ -124,7 +121,7 @@ impl Editor {
     }
 
     pub fn move_cursor_right(&mut self) -> Option<&str> {
-        if self.cursor < self.buffer.buffer_len() {
+        if self.cursor < self.buffer.text_len() {
             self.cursor += 1;
             Some("\x1B[C")
         } else {
@@ -138,6 +135,9 @@ impl Editor {
     }
 
     pub fn delete_backwards(&mut self, io: &mut IO) {
+        if self.cursor == 0 {
+            return
+        }
         self.buffer.move_gap_to_cursor(self.cursor);
         self.buffer.delete_backwards(1);
         self.cursor -= 1;

@@ -1,15 +1,16 @@
 use std::error;
-use std::fs::File;
 use std::io;
-use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
-use std::process::Command;
 
-use parser::ShushCmd;
+use evaluator::ShushCmd;
 use read_input::{Editor, IO};
 
 mod gap_buffer;
-mod parser;
+mod evaluator;
+mod lexer;
 mod read_input;
+mod parser;
+mod builtin;
+mod timestamps;
 
 fn main() {
     let mut io = IO::build_io().expect("Should able to build io");
@@ -39,6 +40,8 @@ enum SpecialKey {
     CtrlU,
     CtrlD,
     Quit,
+    EOT,
+    VTab,
 }
 
 fn repl(io: &mut IO) -> Result<(), Box<dyn error::Error>> {
@@ -63,8 +66,10 @@ fn repl(io: &mut IO) -> Result<(), Box<dyn error::Error>> {
         let key = match bytes.first() {
             Some(b'q') => Some(SpecialKey::Quit),
             Some(b'\n') => Some(SpecialKey::Enter),
-            Some(127) => Some(SpecialKey::Backspace),
+            Some(4) => Some(SpecialKey::EOT),
+            Some(11) => Some(SpecialKey::VTab),
             Some(126) => Some(SpecialKey::Home),
+            Some(127) => Some(SpecialKey::Backspace),
             Some(32..=255) => {
                 editor.write_to_buffer(bytes.as_slice(), io);
                 None
@@ -97,7 +102,7 @@ fn repl(io: &mut IO) -> Result<(), Box<dyn error::Error>> {
         };
 
         match key {
-            Some(SpecialKey::Quit) => {
+            Some(SpecialKey::Quit) | Some(SpecialKey::EOT) => {
                 io.write_to_stdout("shushing...\n".as_bytes()).unwrap();
                 break Ok(());
             }
@@ -121,6 +126,9 @@ fn repl(io: &mut IO) -> Result<(), Box<dyn error::Error>> {
             }
             Some(SpecialKey::Backspace) => {
                 editor.delete_backwards(io);
+            }
+            Some(SpecialKey::VTab) => {
+                // autocomplete here, GL :)
             }
             Some(SpecialKey::Enter) => {
                 io.write_to_stdout(b"\n");
