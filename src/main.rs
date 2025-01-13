@@ -2,7 +2,8 @@ use std::error;
 use std::io;
 
 use evaluator::ShushCmd;
-use read_input::{Editor, IO};
+use read_input::IO;
+use editor::Editor;
 
 mod gap_buffer;
 mod evaluator;
@@ -11,6 +12,7 @@ mod read_input;
 mod parser;
 mod builtin;
 mod timestamps;
+mod editor;
 
 fn main() {
     let mut io = IO::build_io().expect("Should able to build io");
